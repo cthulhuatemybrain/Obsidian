@@ -1,0 +1,52 @@
+```dataviewjs
+const now = new Date(Date.now()); 
+const todayDate = dv.date(now.toISOString().slice(0, 10))
+
+const habits = [
+	{title: "7.5 hours sleep", prop: "sleep", condition: (v) => v.values.hours >= 7 && v.values.minutes >= 30},
+	{ title: "80% hydration", prop: "hydrateFLOZ", condition: (v) >= 50},
+	{ title: "Exercise", prop: "exercise_duration", condition: (v) => v.values.hours >= 0 && v.values.minutes >= 25},
+	{ title: "Mindfulness", prop: "mindfulness_duration", condition: (v) => v.values.hours >= 0 && v.values.minutes >= 05},
+	{ title: "Anxiety", prop: "anxiety"},
+	{ title: "Concentration", prop: "concentration"},
+	{ title: "Mood", prop: "mood"},
+	{ title: "Productivity", prop: "tasks_completed"}
+];
+
+const timeScales = [30, 60, 90];
+const timeScaleTitles = timeScales.map(days => `Last ${days} Days`);
+const pages = dv.pages('#eod');
+
+function dailyIsWithinDays(daily, days) {
+	return dv.date(daily.file.name) >= (todayDate - dv.duration(`${days} days`));
+}
+
+const dailiesInTimeScale = timeScales.map(ts => pages.where(p => dailyIsWithinDays(p, ts)));
+
+const habitRows = habits.map(habit => {
+	const percentages = timeScales.map((ts, i) => {
+		const dailies = dailiesInTimeScale[i];
+		const habitCount = dailies.filter(p => {
+			const value = p[habit.prop];
+			if (!value) return false;
+			if (habit.condition) return habit.condition(value)
+			return value === 'y';
+		}).length;
+		return Math.round(habitCount/ts*100)
+	});
+	// add emoji to first percentage
+	const percentageText = percentages.map((percentage, i) => {
+		if (i === 0) {
+			if (percentage > percentages[1]) return `<span style="color: green;">↑ ${percentage}%</span>`;
+			else if (percentage < percentages[1]) return `<span style="color: red;">↓ ${percentage}%</span>`;
+		}
+		return `${percentage}%`;
+	});
+	return [habit.title, ...percentageText]
+})
+
+dv.table(
+	["Habit", ...timeScaleTitles],
+	habitRows
+)
+```
